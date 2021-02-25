@@ -8,16 +8,16 @@ import (
 type User struct {
 	Name string
 	Addr string
-	C chan string
+	C    chan string
 	conn net.Conn
 }
 
-func NewUser(conn net.Conn) *User{
+func NewUser(conn net.Conn) *User {
 	user := &User{
 		Name: conn.RemoteAddr().String(),
 		Addr: conn.RemoteAddr().String(),
-		C : make(chan string),
-		conn:conn,
+		C:    make(chan string),
+		conn: conn,
 	}
 
 	// 新建用户后创建用户goroutine监听channel的消息 发送给client
@@ -26,12 +26,12 @@ func NewUser(conn net.Conn) *User{
 }
 
 // 监听当前user的channel，接收到消息 发送给客户端
-func (u *User)ListenMessage(){
+func (u *User) ListenMessage() {
 	for {
-		msg := <- u.C
+		msg := <-u.C
 		_, err := u.conn.Write([]byte(msg + "\n"))
 		if err != nil {
-			log.Println("send msg field, error:",err)
+			log.Println("send msg field, error:", err)
 		}
 	}
 }
