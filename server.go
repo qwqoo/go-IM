@@ -33,34 +33,43 @@ func (s *Server) Handler(conn net.Conn) {
 	user := NewUser(conn)
 	s.Online(user)
 	// 监听用户是否活跃的channel
-	isAlive := make(chan bool)
+	isAlive := make(chan bool, 3)
 	// 接收客户端消息处理
 	go func() {
 		buffer := make([]byte, 4096)
-
 		for {
-			n, err := conn.Read(buffer)
-			isAlive <- true
-			if n == 0 {
-				s.Offline(user)
+			select {
+			case <-user.ctx.Done():
 				return
-			}
-			if err != nil && err != io.EOF {
-				log.Println("conn read error:", err)
-			}
+			default:
+				n, err := conn.Read(buffer)
+				isAlive <- true
+				if n == 0 {
+					s.Offline(user)
+					return
+				}
+				if err != nil && err != io.EOF {
+					log.Println("conn read error:", err)
+				}
 
-			msg := string(buffer[:n-1]) // 	去除收到消息到\n
-			s.DoMessage(user, msg)
+				msg := string(buffer[:n-1]) // 	去除收到消息到\n
+				s.DoMessage(user, msg)
+			}
 		}
 	}()
 	for {
 		select {
 		case <-isAlive:
-			// 当用户活跃重置下面的定时器
+		// 当用户活跃时将重置下面的定时器
+		case <-user.ctx.Done():
+			return
 		case <-time.After(time.Second * s.TimeOut):
 			// 	移除超时的客户端
-			// Todo 关闭相应的 goroutine （2个）
-			user.C <- "你已被移出群聊"
+			_, err := user.conn.Write([]byte("由于你长时间未发言，已被移出群聊\n"))
+			if err != nil {
+				log.Println("send msg field, error:", err)
+			}
+			user.cancel()
 			close(user.C)
 			_ = user.conn.Close()
 			delete(s.OnlineMap, user.Name)
@@ -76,7 +85,7 @@ func (s *Server) Online(user *User) {
 }
 
 func (s *Server) Offline(user *User) {
-	// Todo 关闭对应的goroutine （2个）添加移除用户的方法来处理
+	user.cancel()
 	s.mapLock.Lock()
 	delete(s.OnlineMap, user.Name)
 	s.mapLock.Unlock()
