@@ -9,6 +9,6 @@ func init() {
 }
 
 func main() {
-	s := server.NewServer("127.0.0.1", 8888, 30)
+	s := server.NewServer("127.0.0.1", 8888, 300)
 	s.Start()
 }

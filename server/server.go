@@ -52,7 +52,7 @@ func (s *Server) Handler(conn net.Conn) {
 					log.Println("conn read error:", err)
 				}
 
-				msg := string(buffer[:n-1]) // 	去除收到消息到\n
+				msg := string(buffer) // 	去除收到消息到\n X
 				s.DoMessage(user, msg)
 			}
 		}
